@@ -198,7 +198,7 @@ class RunSingle:
         self._chooks.on_instance_completed(result=result)
         self.logger.info("Done")
         self._chooks.on_end()
-        save_predictions(self.output_dir, self.problem_statement.id, result)
+        save_predictions(self.output_dir, self.problem_statement.id, result, self.agent.tools.docker_image_name)
         self.env.close()
 
 

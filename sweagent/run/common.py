@@ -359,7 +359,7 @@ class BasicCLI:
         return config
 
 
-def save_predictions(traj_dir: Path, instance_id: str, result: AgentRunResult):
+def save_predictions(traj_dir: Path, instance_id: str, result: AgentRunResult,  docker_image_name: str | None = None):
     """Save predictions in a file readable by SWE-bench"""
     output_file = traj_dir / instance_id / (instance_id + ".pred")
     output_file.parent.mkdir(parents=True, exist_ok=True)
@@ -367,6 +367,7 @@ def save_predictions(traj_dir: Path, instance_id: str, result: AgentRunResult):
         "model_name_or_path": traj_dir.name,
         "instance_id": instance_id,
         "model_patch": result.info.get("submission"),
+        "docker_image_name": docker_image_name,
     }
     output_file.write_text(json.dumps(datum))
 

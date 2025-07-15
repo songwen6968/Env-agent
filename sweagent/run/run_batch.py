@@ -369,7 +369,7 @@ class RunBatch:
             raise
         finally:
             env.close()
-        save_predictions(self.output_dir, instance.problem_statement.id, result)
+        save_predictions(self.output_dir, instance.problem_statement.id, result, agent.tools.docker_image_name)
         self._chooks.on_instance_completed(result=result)
         return result
 

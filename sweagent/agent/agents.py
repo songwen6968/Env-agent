@@ -915,6 +915,13 @@ class DefaultAgent(AbstractAgent):
             return step
 
         assert self._env is not None
+        if "docker" in step.action.split(' '):
+            is_build, step.action = self.tools.standardize_docker_cmd(step.action, self._env.repo.repo_name)
+            if is_build:
+                cmds = [self.tools.get_docker_romve_cmd(),
+                    f"cp /{self._env.repo.repo_name}/Dockerfile /backup/"]
+                self._env.communicate(input=" && ".join(cmds), check="raise")
+            self.logger.info(f"Operating docker image {self.tools.docker_image_name}")     
         self._chook.on_action_started(step=step)
         execution_t0 = time.perf_counter()
         run_action: str = self.tools.guard_multiline_input(step.action).strip()

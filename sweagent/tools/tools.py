@@ -8,6 +8,7 @@ The `ToolHandler` class is used to handle the tools that are available to the ag
 import asyncio
 import json
 import re
+import uuid
 from functools import cached_property
 from pathlib import Path
 from typing import Any
@@ -120,7 +121,7 @@ class ToolConfig(BaseModel):
     Unlike `install_commands`, these commands are part of the environment state.
     """
 
-    execution_timeout: int = 30
+    execution_timeout: int = 600
     """Timeout for executing commands in the environment"""
 
     install_timeout: int = 300
@@ -222,6 +223,7 @@ class ToolHandler:
         # partially initialized in `install_commands`.
         self._reset_commands = []
         self._command_patterns = self._get_command_patterns()
+        self._docker_image_num = uuid.uuid4() 
         self.logger = get_logger("swea-tools", emoji="🧰")
         # For testing: Return this state instead of querying the environment
         self.mock_state: dict[str, str] | None = None
@@ -409,3 +411,51 @@ class ToolHandler:
         )
         _command_patterns[self.config.submit_command] = submit_pat
         return _command_patterns
+        
+    # Standardizing Docker Commands
+    # -----------------------------
+
+    @property
+    def docker_image_name(self) -> str:
+        return f"envagent_test_image_{self._docker_image_num}"
+
+    def _extract_docker_cmd(self, action: str) -> tuple[list, list, list]:
+        """Extract the docker command from the action."""
+        action_parts = [part for part in action.split(" ") if part]
+        st_index, end_index = action_parts.index("docker"), len(action_parts)
+        for i in range(st_index + 1, len(action_parts)):
+            if "&" in action_parts[i] or ";" in action_parts[i] or "|" in action_parts[i]:
+                end_index = i
+                break
+        return action_parts[:st_index], action_parts[st_index:end_index], action_parts[end_index:]
+
+    def standardize_docker_cmd(self, action: str, repo_name: str) -> tuple[bool, str]:
+        """Standardize docker build and run commands."""
+        pre, action_parts, suf = self._extract_docker_cmd(action)
+        is_build = False
+        if "build" in action_parts:
+            is_build = True
+            if "-t" in action_parts or "--tag" in action_parts:
+                tag_index = action_parts.index("-t") if "-t" in action_parts else action_parts.index("--tag")
+                if tag_index + 1 >= len(action_parts):
+                    action_parts.append(self.docker_image_name)
+                else:
+                    action_parts[tag_index + 1] = self.docker_image_name
+            else:
+                action_parts.append("-t")
+                action_parts.append(self.docker_image_name)
+            for i, part in enumerate(action_parts):
+                if "." in part or repo_name in part:
+                    action_parts[i] = "/backup"
+            if "--rm" not in action_parts:
+                action_parts.append("--rm")
+            if "--progress=plain" not in action_parts:
+                action_parts.append("--progress=plain")
+        elif "run" in action_parts:
+            action_parts = ["docker", "run", "-it", "--rm"]
+            action_parts.append(self.docker_image_name)
+        return is_build, " ".join(pre + action_parts + suf)
+    
+    def get_docker_romve_cmd(self) -> str:
+        """Get the command to remove the docker image."""
+        return f"( docker rmi -f {self.docker_image_name} || true )"

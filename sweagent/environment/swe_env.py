@@ -110,6 +110,7 @@ class SWEEnv:
         """Start the environment and reset it to a clean state."""
         self._init_deployment()
         self.reset()
+        self.communicate(input=f"cp -R . /backup", check="raise")
         for command in self._post_startup_commands:
             self.communicate(command, check="raise", timeout=self.post_startup_command_timeout)
 
