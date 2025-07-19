@@ -127,7 +127,7 @@ class ToolConfig(BaseModel):
     install_timeout: int = 300
     """Timeout used for each of the installation commands"""
 
-    total_execution_timeout: int = 1800
+    total_execution_timeout: int = 7200
     """Timeout for executing all commands in the environment.
     Note: Does not interrupt running commands, but will stop the agent for the next step.
     """
@@ -452,8 +452,9 @@ class ToolHandler:
             if "--progress=plain" not in action_parts:
                 action_parts.append("--progress=plain")
         elif "run" in action_parts:
-            action_parts = ["docker", "run", "-it", "--rm"]
-            action_parts.append(self.docker_image_name)
+            if "test_image" in action_parts:
+                index = action_parts.index("test_image")
+                action_parts[index] = self.docker_image_name
         return is_build, " ".join(pre + action_parts + suf)
     
     def get_docker_romve_cmd(self) -> str:

@@ -76,7 +76,7 @@ class TemplateConfig(BaseModel):
     Available variables: `observation`, `max_observation_length`, `elided_chars`
     """
 
-    max_observation_length: int = 100_000
+    max_observation_length: int = 10_000
     """Truncate observation to this length if it exceeds it."""
 
     next_step_no_output_template: str = None  # type: ignore
@@ -691,7 +691,7 @@ class DefaultAgent(AbstractAgent):
         elif len(step.observation) > self.templates.max_observation_length:
             templates = [self.templates.next_step_truncated_observation_template]
             elided_chars = len(step.observation) - self.templates.max_observation_length
-            step.observation = step.observation[: self.templates.max_observation_length]
+            step.observation = step.observation[-self.templates.max_observation_length:]
         else:
             # Show standard output template if there is observation content
             templates = [self.templates.next_step_template]
