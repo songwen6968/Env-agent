@@ -197,7 +197,7 @@ class SWEEnv:
     def communicate(
         self,
         input: str,
-        timeout: int | float = 25,
+        timeout: int | float = 300,
         *,
         check: Literal["warn", "ignore", "raise"] = "ignore",
         error_msg: str = "Command failed",

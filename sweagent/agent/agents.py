@@ -921,6 +921,8 @@ class DefaultAgent(AbstractAgent):
                 cmds = [self.tools.get_docker_romve_cmd(),
                     f"cp /{self._env.repo.repo_name}/Dockerfile /backup/"]
                 self._env.communicate(input=" && ".join(cmds), check="raise")
+                cmd = f"cp /{self._env.repo.repo_name}/.dockerignore /backup/"
+                self._env.communicate(input=cmd, check="ignore") # .dockerignore is not mandatory
             self.logger.info(f"Operating docker image {self.tools.docker_image_name}")     
         self._chook.on_action_started(step=step)
         execution_t0 = time.perf_counter()

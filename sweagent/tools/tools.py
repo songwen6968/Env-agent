@@ -121,7 +121,7 @@ class ToolConfig(BaseModel):
     Unlike `install_commands`, these commands are part of the environment state.
     """
 
-    execution_timeout: int = 600
+    execution_timeout: int = 1800
     """Timeout for executing commands in the environment"""
 
     install_timeout: int = 300
@@ -445,7 +445,7 @@ class ToolHandler:
                 action_parts.append("-t")
                 action_parts.append(self.docker_image_name)
             for i, part in enumerate(action_parts):
-                if "." in part or repo_name in part:
+                if part in [".", "./", repo_name, f"/{repo_name}"]:
                     action_parts[i] = "/backup"
             if "--rm" not in action_parts:
                 action_parts.append("--rm")
