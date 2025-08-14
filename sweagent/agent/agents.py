@@ -927,12 +927,17 @@ class DefaultAgent(AbstractAgent):
         self._chook.on_action_started(step=step)
         execution_t0 = time.perf_counter()
         run_action: str = self.tools.guard_multiline_input(step.action).strip()
+        
+        BANNED_COMMANDS = ["git add", "git commit"]
         try:
-            step.observation = self._env.communicate(
-                input=run_action,
-                timeout=self.tools.config.execution_timeout,
-                check="raise" if self._always_require_zero_exit_code else "ignore",
-            )
+            if any(banned_cmd in run_action for banned_cmd in BANNED_COMMANDS):
+                step.observation = "You cannot use git add or git commit commands in your action.\n"
+            else:
+                step.observation = self._env.communicate(
+                    input=run_action,
+                    timeout=self.tools.config.execution_timeout,
+                    check="raise" if self._always_require_zero_exit_code else "ignore",
+                )
         except CommandTimeoutError:
             self._n_consecutive_timeouts += 1
             if self._n_consecutive_timeouts >= self.tools.config.max_consecutive_execution_timeouts:
