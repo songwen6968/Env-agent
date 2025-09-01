@@ -915,23 +915,29 @@ class DefaultAgent(AbstractAgent):
             return step
 
         assert self._env is not None
+        BANNED_GIT_COMMANDS = ["git add", "git commit"]
+        
+        is_valid, msg = True, ""
+        if any(banned_cmd in step.action for banned_cmd in BANNED_GIT_COMMANDS):
+            is_valid, msg = False, "You cannot use git add or git commit commands in your action.\n"
         if "docker" in step.action.split(' '):
-            is_build, step.action = self.tools.standardize_docker_cmd(step.action, self._env.repo.repo_name)
-            if is_build:
-                cmds = [self.tools.get_docker_romve_cmd(),
-                    f"cp /{self._env.repo.repo_name}/Dockerfile /backup/"]
-                self._env.communicate(input=" && ".join(cmds), check="raise")
-                cmd = f"cp /{self._env.repo.repo_name}/.dockerignore /backup/"
-                self._env.communicate(input=cmd, check="ignore") # .dockerignore is not mandatory
-            self.logger.info(f"Operating docker image {self.tools.docker_image_name}")     
+            is_valid, msg = self.tools.validate_docker_cmd(step.action)
+            if is_valid:
+                is_build, step.action = self.tools.standardize_docker_cmd(step.action, self._env.repo.repo_name)
+                if is_build:
+                    cmds = [self.tools.get_docker_romve_cmd(),
+                        f"cp /{self._env.repo.repo_name}/Dockerfile /backup/"]
+                    self._env.communicate(input=" && ".join(cmds), check="raise")
+                    cmd = f"cp /{self._env.repo.repo_name}/.dockerignore /backup/"
+                    self._env.communicate(input=cmd, check="ignore") # .dockerignore is not mandatory
+                self.logger.info(f"Operating docker image {self.tools.docker_image_name}") 
+                
         self._chook.on_action_started(step=step)
         execution_t0 = time.perf_counter()
         run_action: str = self.tools.guard_multiline_input(step.action).strip()
-        
-        BANNED_COMMANDS = ["git add", "git commit"]
         try:
-            if any(banned_cmd in run_action for banned_cmd in BANNED_COMMANDS):
-                step.observation = "You cannot use git add or git commit commands in your action.\n"
+            if not is_valid:
+                step.observation = msg
             else:
                 step.observation = self._env.communicate(
                     input=run_action,

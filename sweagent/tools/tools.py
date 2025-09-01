@@ -457,6 +457,23 @@ class ToolHandler:
                 action_parts[index] = self.docker_image_name
         return is_build, " ".join(pre + action_parts + suf)
     
+    def verify_docker_cmd(self, action: str) -> bool:
+        STD_BUILD_CMD = "docker build --rm -t test_image ."
+        BANNED_RUN_OPTIONS = ["--privileged", "--network", "--net", "pid", "ipc", "userns", 
+            "-P", "--publish", "--publish-all", "-p", "-v", "--volume", "--mount", "--cap-add"]
+        
+        _, action_parts, _ = self._extract_docker_cmd(action)
+        docker_cmd = " ".join(action_parts).strip()
+        if "build" in action_parts:
+            if docker_cmd != STD_BUILD_CMD:
+                return False, f"You can only build the docker image with the command: `{STD_BUILD_CMD}`\n"
+        elif "run" in action_parts:
+            if any(opt in docker_cmd for opt in BANNED_RUN_OPTIONS):
+                return False, f"Your options for running the docker image are not allowed. You should not mount or publish any ports or use privileged mode.\n"
+        else:
+            return False, "You can only use `docker build` and `docker run` commands. Other necessary docker processes are alreadly managed by the environment.\n"
+        return True, ""
+    
     def get_docker_romve_cmd(self) -> str:
         """Get the command to remove the docker image."""
         return f"( docker rmi -f {self.docker_image_name} || true )"
