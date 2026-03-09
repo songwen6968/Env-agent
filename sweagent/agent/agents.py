@@ -921,7 +921,7 @@ class DefaultAgent(AbstractAgent):
         if any(banned_cmd in step.action for banned_cmd in BANNED_GIT_COMMANDS):
             is_valid, msg = False, "You cannot use git add or git commit commands in your action.\n"
         if "docker" in step.action.split(' '):
-            is_valid, msg = self.tools.validate_docker_cmd(step.action)
+            is_valid, msg = self.tools.verify_docker_cmd(step.action)
             if is_valid:
                 is_build, step.action = self.tools.standardize_docker_cmd(step.action, self._env.repo.repo_name)
                 if is_build:

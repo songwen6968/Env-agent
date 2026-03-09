@@ -682,7 +682,7 @@ class LiteLLMModel(AbstractModel):
                 model=self.config.name,
                 messages=messages,
                 temperature=self.config.temperature if temperature is None else temperature,
-                top_p=self.config.top_p,
+                # top_p=self.config.top_p,
                 api_version=self.config.api_version,
                 api_key=self.config.choose_api_key(),
                 fallbacks=self.config.fallbacks,
