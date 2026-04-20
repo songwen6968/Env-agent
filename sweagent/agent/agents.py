@@ -410,6 +410,8 @@ class RetryAgent(AbstractAgent):
 
 
 class DefaultAgent(AbstractAgent):
+    BANNED_GIT_COMMANDS = ["git add", "git commit"]
+
     def __init__(
         self,
         *,
@@ -915,12 +917,10 @@ class DefaultAgent(AbstractAgent):
             return step
 
         assert self._env is not None
-        BANNED_GIT_COMMANDS = ["git add", "git commit"]
-        
         is_valid, msg = True, ""
-        if any(banned_cmd in step.action for banned_cmd in BANNED_GIT_COMMANDS):
+        if any(banned_cmd in step.action for banned_cmd in self.BANNED_GIT_COMMANDS):
             is_valid, msg = False, "You cannot use git add or git commit commands in your action.\n"
-        if "docker" in step.action.split(' '):
+        elif "docker" in step.action.split(' '):
             is_valid, msg = self.tools.verify_docker_cmd(step.action)
             if is_valid:
                 is_build, step.action = self.tools.standardize_docker_cmd(step.action, self._env.repo.repo_name)

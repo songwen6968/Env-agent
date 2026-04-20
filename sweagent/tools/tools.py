@@ -121,13 +121,13 @@ class ToolConfig(BaseModel):
     Unlike `install_commands`, these commands are part of the environment state.
     """
 
-    execution_timeout: int = 1800
+    execution_timeout: int = 600
     """Timeout for executing commands in the environment"""
 
     install_timeout: int = 300
     """Timeout used for each of the installation commands"""
 
-    total_execution_timeout: int = 7200
+    total_execution_timeout: int = 1800
     """Timeout for executing all commands in the environment.
     Note: Does not interrupt running commands, but will stop the agent for the next step.
     """
@@ -457,7 +457,7 @@ class ToolHandler:
                 action_parts[index] = self.docker_image_name
         return is_build, " ".join(pre + action_parts + suf)
     
-    def verify_docker_cmd(self, action: str) -> bool:
+    def verify_docker_cmd(self, action: str) -> tuple[bool, str]:
         STD_BUILD_CMD = "docker build --rm -t test_image ."
         BANNED_RUN_OPTIONS = ["--privileged", "--network", "--net", "-P", "--publish", "--publish-all", "-p", 
             "-v", "--volume", "--mount", "--cap-add", "host", "pid", "ipc", "userns"]
@@ -471,7 +471,7 @@ class ToolHandler:
             if any(banned_opt in docker_cmd for banned_opt in BANNED_RUN_OPTIONS):
                 return False, f"Your options for running the docker image are not allowed. You should not mount or publish any ports or use privileged mode.\n"
         else:
-            return False, "You can only use `docker build` or `docker run` commands. Other necessary docker processes are alreadly managed by the environment.\n"
+            return False, "You can only use `docker build` or `docker run` commands. Other necessary docker processes are already managed by the environment.\n"
         return True, ""
     
     def get_docker_romve_cmd(self) -> str:
