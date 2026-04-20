@@ -459,6 +459,11 @@ class ToolHandler:
             if "--progress=plain" not in action_parts:
                 action_parts.append("--progress=plain")
         elif "run" in action_parts:
+            # The pexpect-driven shell has no real TTY, so -i/-t flags cause
+            # docker to wait for stdin/allocate a PTY that never closes and
+            # hang the session. Silently strip them.
+            tty_flags = {"-i", "-t", "-it", "-ti", "--interactive", "--tty"}
+            action_parts = [p for p in action_parts if p not in tty_flags]
             if "test_image" in action_parts:
                 index = action_parts.index("test_image")
                 action_parts[index] = self.docker_image_name
