@@ -870,20 +870,24 @@ class DefaultAgent(AbstractAgent):
     def _get_edited_files_with_context(self, patch: str) -> dict[str, str]:
         """Get the edited files with context from the patch"""
         assert self._env is not None
+
+        def _safe_read(path):
+            # Paths in a git diff aren't always regular files: submodules show up as
+            # directory paths (mode 160000), and files may have been deleted, be
+            # non-text, or be unreadable. read_file would raise (IsADirectoryError,
+            # FileNotFoundError, PermissionError, etc.) — degrade to empty context
+            # rather than crashing the agent.
+            try:
+                return self._env.read_file(PurePosixPath("/") / self._env.repo.repo_name / path)  # type: ignore[attr-defined]
+            except Exception as e:
+                self.logger.debug(f"Skipping unreadable path {path!r} for patch context: {e}")
+                return ""
+
         try:
             if self._env.repo is None:
                 pf = None
             else:
-                pf = (
-                    PatchFormatter(
-                        patch,
-                        read_method=lambda path: self._env.read_file(
-                            PurePosixPath("/") / self._env.repo.repo_name / path
-                        ),  # type: ignore[attr-defined]
-                    )
-                    if patch
-                    else None
-                )
+                pf = PatchFormatter(patch, read_method=_safe_read) if patch else None
         except UnidiffParseError:
             self.logger.error("Failed to parse patch with unidiff. Some variables will be empty.")
             pf = None
@@ -927,12 +931,32 @@ class DefaultAgent(AbstractAgent):
             if is_valid:
                 is_build, step.action = self.tools.standardize_docker_cmd(step.action, self._env.repo.repo_name)
                 if is_build:
-                    cmds = [self.tools.get_docker_romve_cmd(),
-                        f"cp /{self._env.repo.repo_name}/Dockerfile /backup/"]
-                    self._env.communicate(input=" && ".join(cmds), check="raise")
-                    cmd = f"cp /{self._env.repo.repo_name}/.dockerignore /backup/"
-                    self._env.communicate(input=cmd, check="ignore") # .dockerignore is not mandatory
-                self.logger.info(f"Operating docker image {self.tools.docker_image_name}") 
+                    # rmi is safe (`|| true` guards it); failures are ignored even on pexpect glitches
+                    self._env.communicate(input=self.tools.get_docker_romve_cmd(), check="ignore")
+                    # Critical: Dockerfile must land in /backup/ because standardize_docker_cmd rewrites
+                    # the build context to /backup. pexpect occasionally fails to parse exit codes for
+                    # quick commands (r.exit_code=None) even when the command itself succeeded, so
+                    # verify the end state instead and retry on transient glitches.
+                    cp_cmd = f"cp /{self._env.repo.repo_name}/Dockerfile /backup/"
+                    verify_cmd = "test -f /backup/Dockerfile && echo DOCKERFILE_COPIED_OK || echo DOCKERFILE_COPIED_MISSING"
+                    for attempt in range(3):
+                        try:
+                            self._env.communicate(input=cp_cmd, check="ignore")
+                            verify = self._env.communicate(input=verify_cmd, check="ignore")
+                        except Exception as e:
+                            self.logger.warning(f"Dockerfile copy attempt {attempt + 1} raised: {e}")
+                            continue
+                        if "DOCKERFILE_COPIED_OK" in verify:
+                            break
+                    else:
+                        msg = "Failed to copy Dockerfile to /backup/ for docker build context after 3 attempts"
+                        raise RuntimeError(msg)
+                    # .dockerignore is optional. Mirror source presence so a stale copy
+                    # from a previous build does not leak into /backup/.
+                    src_dockerignore = f"/{self._env.repo.repo_name}/.dockerignore"
+                    cmd = f"if [ -f {src_dockerignore} ]; then cp {src_dockerignore} /backup/; else rm -f /backup/.dockerignore; fi"
+                    self._env.communicate(input=cmd, check="ignore")
+                self.logger.info(f"Operating docker image {self.tools.docker_image_name}")
                 
         self._chook.on_action_started(step=step)
         execution_t0 = time.perf_counter()
@@ -971,7 +995,21 @@ class DefaultAgent(AbstractAgent):
         step.execution_time = time.perf_counter() - execution_t0
         self._total_execution_time += step.execution_time
         self._chook.on_action_executed(step=step)
-        step.state = self.tools.get_state(env=self._env)
+        try:
+            step.state = self.tools.get_state(env=self._env)
+        except CommandTimeoutError as e:
+            # State probes run between every step; a timeout here usually means the
+            # shell's PTY is in a degraded state after an earlier long command's
+            # interrupt. Letting this exception propagate kills the whole instance
+            # (forward_with_handling treats it as exit_command_timeout with zero
+            # retries, regardless of _n_consecutive_timeouts). Degrade to empty
+            # state — agent sees an empty `working_dir` in the next prompt and will
+            # naturally reassess (cd, pwd) instead of assuming stale cwd.
+            self.logger.warning(
+                f"State probe timed out; using empty state to signal uncertainty: {e}",
+                exc_info=True,
+            )
+            step.state = {}
 
         if RETRY_WITH_OUTPUT_TOKEN in step.observation:
             step.observation = step.observation.replace(RETRY_WITH_OUTPUT_TOKEN, "")

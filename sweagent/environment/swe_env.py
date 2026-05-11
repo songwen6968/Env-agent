@@ -191,7 +191,12 @@ class SWEEnv:
 
     def interrupt_session(self):
         self.logger.info("Interrupting session")
-        asyncio.run(self.deployment.runtime.run_in_session(BashInterruptAction()))
+        # Default is timeout=0.2s × n_retry=3 = 0.6s — not enough for heavy processes
+        # (Django test cleanup, DB connection teardown, etc.) to respond to SIGINT.
+        # Bump to 36s × 3 = 108s worst case; returns immediately once shell shows PS1.
+        asyncio.run(self.deployment.runtime.run_in_session(
+            BashInterruptAction(timeout=36, n_retry=3)
+        ))
 
     # todo: return exit code?
     def communicate(
