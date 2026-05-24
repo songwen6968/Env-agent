@@ -990,6 +990,25 @@ class DefaultAgent(AbstractAgent):
                 timeout=self.tools.config.execution_timeout,
                 command=run_action,
             )
+            # When `submit` itself times out, the agent's existing tooling has
+            # no way to recover. The common cause is `git add -A` capturing
+            # large untracked build artifacts (eggs/, build/, dist/, node_modules/,
+            # .venv/, etc.) so the rendered diff overflows the PTY. Surface a
+            # loud hint so the agent can act on its next step.
+            if run_action.strip().split() and run_action.strip().split()[0] == "submit":
+                step.observation += (
+                    "\n\n"
+                    "============================================================\n"
+                    "!! HINT: `submit` invokes `git add -A` and then prints the\n"
+                    "   full diff. A timeout here usually means the working tree\n"
+                    "   contains large untracked build/test artifacts (eggs/,\n"
+                    "   build/, dist/, *.egg-info/, node_modules/, .tox/, .venv/,\n"
+                    "   __pycache__/, etc.) that bloat the diff and stall the\n"
+                    "   PTY write. Add an appropriate `.gitignore` (or extend\n"
+                    "   the repo's existing one), verify with `git status` that\n"
+                    "   only the intended files are staged, then re-run submit.\n"
+                    "============================================================"
+                )
         else:
             self._n_consecutive_timeouts = 0
         step.execution_time = time.perf_counter() - execution_t0
