@@ -4,18 +4,18 @@
   </a>
 </p>
 
-# Env-agent
+# SWE-agent for SusVibes
 
-**Env-agent** is a fork of [SWE-agent](https://github.com/SWE-agent/SWE-agent) designed to automatically set up environments for Python software repositories and execute their test suites.
+A fork of [SWE-agent](https://github.com/SWE-agent/SWE-agent) for the SusVibes project, split across two branches:
 
-> **Important:** This project lives on the `env-setup` branch. Make sure to check out that branch:
-> ```bash
-> git checkout env-setup
-> ```
+- **`sv`** — the default SWE-agent baseline version.
+- **`sv-env-setup`** — automatically sets up environments for Python software repositories and executes their test suites.
 
-## What it does
+> _You are on the **`sv-env-setup`** branch._
 
-Env-agent automates the following workflow for any Python repository:
+## What this branch does
+
+The `sv-env-setup` branch automates the following workflow for any Python repository:
 
 1. **Install dependencies** — automatically resolves and installs repository dependencies
 2. **Reproduce the testing workflow** — discovers and runs the project's test suite
