@@ -29,6 +29,8 @@ This project is built on top of [SWE-agent](https://github.com/SWE-agent/SWE-age
 
 MIT. See `LICENSE`.
 
+> **Recommended:** install from source, then modify SWE-ReX as described in the footnote below for broader compatibility.
+
 ---
 
 <sup>**Footnote — patches for older Python bases (2026-05).** To support Env-agent running against base images with very old system Python (e.g. SusVibes' `dind_py:2.7` / `dind_py:3.5` from `python:2.7-buster` / `python:3.5-buster`), the following local patches were applied:</sup>
