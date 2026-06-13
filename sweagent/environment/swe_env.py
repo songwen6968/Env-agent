@@ -157,7 +157,10 @@ class SWEEnv:
                 f"cd /{self.repo.repo_name}",
                 "export ROOT=$(pwd -P)",
                 "git status",
-                "git fetch",
+                # `git fetch` removed: the local cache (populated by clone_github_repo)
+                # is authoritative for this workflow; fetching adds no value and can fail
+                # on stale-ref conflicts (e.g., upstream renamed a `dev/*` namespace into
+                # a top-level `dev` branch).
                 f"git reset --hard {self.repo.base_commit}",
                 "git clean -fdq",
             ]

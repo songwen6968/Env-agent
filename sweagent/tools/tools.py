@@ -7,6 +7,7 @@ The `ToolHandler` class is used to handle the tools that are available to the ag
 
 import asyncio
 import json
+import os
 import re
 import uuid
 from functools import cached_property
@@ -24,6 +25,9 @@ from sweagent.tools.commands import BASH_COMMAND, Command
 from sweagent.tools.parsing import FunctionCallingParser, JsonParser, ParseFunction
 from sweagent.tools.utils import _guard_multiline_input, generate_command_docs
 from sweagent.utils.log import get_logger
+
+DOCKERHUB_USERNAME = "songwen6968"
+ARCH = os.uname().machine
 
 
 class ToolFilterConfig(BaseModel):
@@ -424,7 +428,7 @@ class ToolHandler:
 
     @property
     def docker_image_name(self) -> str:
-        return f"envagent_test_image_{self._docker_image_num}"
+        return f"{DOCKERHUB_USERNAME}/susvibes.{ARCH}.env-agent_{self._docker_image_num}"
 
     def _extract_docker_cmd(self, action: str) -> tuple[list, list, list]:
         """Extract the docker command from the action."""
